@@ -37,22 +37,53 @@ portfolio_nominal_aftertax_return = 6.0/100
 house_nominal_appreciation = 3.5/100
 yearly_inflation = 2.5/100
 
+
+
+
 #Portfolio
 #Use this longterm for backtesting different market scenerios: http://www.econ.yale.edu/~shiller/data.htm
-def stock_portfolio(initial_sum, ):
-    #cakculates based on a starting amount and then a monthly contribution
-    #This will work for both the rent secenerio and the buy scenerio
-    #Once the mortgage and rent swap can you start adding it to the mortgage equity difference? 
-    #when (house expense) > (rent expense) -> rent portfolio receives difference as contributions
-    #when (house expense) < (rent expense) -> house portfolio receives difference as contributions. This is added the the eqioty of the house
-    #monthly contribution = 
+def stock_portfolio(type, initial_sum, cashflow_df, avg_return, buy_transaction):
+    portfolio = initial_sum + buy_transaction
+    monthly_return = (1+avg_return)**(1/12)
+    invest_return = 0
 
+    data = []
+    month = 1
 
+    if type == 0: #rent
+        for index, row in cashflow_df.iterrows():
+            data.append([month, round(invest_return,2), round(portfolio, 2)])
+            monthly_contribution = row['Expense Difference']
+            invest_return = portfolio * (monthly_return-1)
 
+            portfolio = portfolio + monthly_contribution + invest_return
 
-    return
+            month += 1
 
-#Cashflow of the house vs rent
+        df_portfolio = pd.DataFrame(data, columns=["Month", "Investment Return", "Portfolio Value"])
+    
+    elif type == 1: #house
+        for index, row in cashflow_df.iterrows():
+            monthly_contribution = row['Expense Difference']
+
+            if monthly_contribution > 0:
+                data.append([month, round(invest_return,2), round(portfolio, 2)])
+                month += 1
+
+            else:  
+                data.append([month, round(invest_return,2), round(portfolio, 2)])
+                monthly_contribution = abs(row['Expense Difference'])
+                invest_return = portfolio * (monthly_return-1)
+
+                portfolio = portfolio + monthly_contribution + invest_return
+                month += 1
+
+                df_portfolio = pd.DataFrame(data, columns=["Month", "Investment Return", "Portfolio Value"])
+    
+    return df_portfolio
+
+#Cashflow 
+# #House vs Rent
 def cashflow(house, rent):
     df = pd.merge(house[['Month', 'Monthly House Expense']], rent[['Month', 'Monthly Rent Expense']], on='Month')
 
@@ -65,6 +96,7 @@ def cashflow(house, rent):
 def house_equity(timeline, house_value, house_appreciation, selling_fee, mortgage_df):
     monthly_house_appreciation = (1+house_appreciation)**(1/12)
     house_value = house_value * (monthly_house_appreciation)
+    starting_house_value = house_value
 
     df_mortgage = pd.DataFrame({'Month': mortgage_df['Month'], 'Remaining_Principal': mortgage_df['Remaining_Principal']})
 
@@ -79,18 +111,15 @@ def house_equity(timeline, house_value, house_appreciation, selling_fee, mortgag
 
     df = pd.merge(df_mortgage, df_house_portfolio, on="Month")
 
-    df['Home Equity'] = round((df["Monthly House Value"] - df["Remaining_Principal"] - (df["Monthly House Value"] * selling_fee)), 2)
+    df['Home Equity'] = round((df["Monthly House Value"] - df["Remaining_Principal"] - ( starting_house_value * selling_fee)), 2)
 
     return df
 
 
 #House Cost - Monthly
-#When merging the mortage df to the house df it cuts the rows to the shpter df size
 def house(timeline, mortgage_df, annual_home_maintenance, utilities, insurance, strata, other, inflation, prop_tax, house_appreciation, house):
-    #housing expense
     monthly_home_maintenance = annual_home_maintenance/12
     monthly_inflation = (1+inflation)**(1/12)
-    #monthly_house_expense = monthly_home_maintenance + utilities + insurance + strata + other
     monthly_property_tax = (house * prop_tax) / 12
 
     data = []
@@ -110,15 +139,13 @@ def house(timeline, mortgage_df, annual_home_maintenance, utilities, insurance, 
         utilities = utilities * (monthly_inflation) #updates every month
         monthly_home_maintenance = annual_home_maintenance/12 #updates every month
 
-        #monthly_house_expense = monthly_home_maintenance + utilities + insurance + strata + other
-
     df_mortgage = pd.DataFrame({'Month': mortgage_df['Month'], 'Principal_Payment': mortgage_df['Principal_Payment'], 'Interest_Payment': mortgage_df['Interest_Payment']})
     df_house = pd.DataFrame(data, columns=["Month", "Monthly Maintenance", "Monthly Utilities", "Monthly Insurance", "Monthly Strata", "Monthly Other", 'Propert Tax'])
 
     df = pd.merge(df_mortgage, df_house, on="Month", how='right')
     df = df.fillna(0)
 
-    df["Monthly House Expense"] = df["Monthly Maintenance"] + df['Monthly Utilities'] + df['Monthly Insurance'] + df['Monthly Strata'] + df['Monthly Other'] + df['Principal_Payment'] + df['Interest_Payment']
+    df["Monthly House Expense"] = df["Monthly Maintenance"] + df['Monthly Utilities'] + df['Monthly Insurance'] + df['Monthly Strata'] + df['Monthly Other'] + df['Propert Tax'] + df['Principal_Payment'] + df['Interest_Payment']
 
     return df
 
@@ -178,6 +205,8 @@ rent_cost = rent(rent_monthly, rent_increase, utilities_monthly, rent_insurance,
 house_cost = house(timeline, amortization_table, annual_home_maintenance, utilities_monthly, house_insurance, strata_fee, house_other, yearly_inflation, property_tax, house_nominal_appreciation, house_value)
 house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table)
 cash = cashflow(house_cost, rent_cost)
+rent_portfolio = stock_portfolio(0, (house_value * down_payment), cash, portfolio_nominal_aftertax_return, house_purchase_fee)
+house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
 #portfolio = portfolio(amortization_table, rent_scenerio)
 
 #Create table from dataframe
@@ -186,15 +215,21 @@ app.layout = dash_table.DataTable(amortization_table.to_dict('records'))
 app.layout = mt.Grid(
     children=[
         mt.Col(
-            span=6,
+            span=4,
             children=[
                 html.H2("Table 1"), dash_table.DataTable(cash.to_dict('records'))
             ]
         ),
         mt.Col(
-            span=6,
+            span=4,
             children=[
-                html.H2("Table 2"), dash_table.DataTable(house_cost.to_dict('records'))
+                html.H2("Table 2"), dash_table.DataTable(house_equity_df.to_dict('records'))
+            ]
+        ),
+        mt.Col(
+            span=4,
+            children=[
+                html.H2("Table 3"), dash_table.DataTable(house_portfolio.to_dict('records'))
             ]
         )
     ]
