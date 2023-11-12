@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.graph_objs as go
 from dash import Dash, html, dash_table, dcc, callback, Output, Input
 import dash_mantine_components as mt
 
@@ -38,7 +39,20 @@ house_nominal_appreciation = 3.5/100
 yearly_inflation = 2.5/100
 
 
+#Total House Equity
+def total_house_equity(house, portfolio):
+    df_temp = pd.merge(house, portfolio, on="Month", how='right')
+    df_temp = df_temp.fillna(0)
 
+    df = pd.DataFrame()
+
+    df["Month"] = df_temp["Month"]
+    df["Value"] = df_temp["Home Equity"] + df_temp["Portfolio Value"]
+
+    # for index, row in df_temp.iterrows():
+    #     if row[""]
+
+    return df
 
 #Portfolio
 #Use this longterm for backtesting different market scenerios: http://www.econ.yale.edu/~shiller/data.htm
@@ -48,7 +62,7 @@ def stock_portfolio(type, initial_sum, cashflow_df, avg_return, buy_transaction)
     invest_return = 0
 
     data = []
-    month = 1
+    month = 0
 
     if type == 0: #rent
         for index, row in cashflow_df.iterrows():
@@ -71,14 +85,13 @@ def stock_portfolio(type, initial_sum, cashflow_df, avg_return, buy_transaction)
                 month += 1
 
             else:  
-                data.append([month, round(invest_return,2), round(portfolio, 2)])
                 monthly_contribution = abs(row['Expense Difference'])
                 invest_return = portfolio * (monthly_return-1)
-
                 portfolio = portfolio + monthly_contribution + invest_return
+                data.append([month, round(invest_return,2), round(portfolio, 2)])
                 month += 1
 
-                df_portfolio = pd.DataFrame(data, columns=["Month", "Investment Return", "Portfolio Value"])
+    df_portfolio = pd.DataFrame(data, columns=["Month", "Investment Return", "Portfolio Value"])
     
     return df_portfolio
 
@@ -207,7 +220,9 @@ house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation
 cash = cashflow(house_cost, rent_cost)
 rent_portfolio = stock_portfolio(0, (house_value * down_payment), cash, portfolio_nominal_aftertax_return, house_purchase_fee)
 house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
+final_house_equity = total_house_equity(house_equity_df, house_portfolio)
 #portfolio = portfolio(amortization_table, rent_scenerio)
+dfs = [rent_portfolio, final_house_equity]
 
 #Create table from dataframe
 app.layout = dash_table.DataTable(amortization_table.to_dict('records'))
@@ -217,13 +232,13 @@ app.layout = mt.Grid(
         mt.Col(
             span=4,
             children=[
-                html.H2("Table 1"), dash_table.DataTable(cash.to_dict('records'))
+                html.H2("Table 1"), dash_table.DataTable(house_equity_df.to_dict('records'))
             ]
         ),
         mt.Col(
             span=4,
             children=[
-                html.H2("Table 2"), dash_table.DataTable(house_equity_df.to_dict('records'))
+                html.H2("Table 2"), dash_table.DataTable(cash.to_dict('records'))
             ]
         ),
         mt.Col(
@@ -234,6 +249,29 @@ app.layout = mt.Grid(
         )
     ]
 )
+
+# app.layout = html.Div([
+#     dcc.Graph(
+#         id='line-graph',
+#         figure={
+#             'data': [
+#                 go.Scatter(
+#                     x=df['Month'],
+#                     y=df['Portfolio Value'],
+#                     mode='lines+markers',
+#                     name=f'DataFrame {i+1}'
+#                 ) for i, df in enumerate(dfs)
+#             ],
+#             'layout': go.Layout(
+#                 title='Line Graph from Multiple DataFrames',
+#                 xaxis={'title': 'X-axis'},
+#                 yaxis={'title': 'Y-axis'},
+#                 showlegend=True
+#             )
+#         }
+#     )
+# ])
+
 
 if __name__ == '__main__':
     app.run(debug=True)
