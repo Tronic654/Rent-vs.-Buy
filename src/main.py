@@ -47,10 +47,7 @@ def total_house_equity(house, portfolio):
     df = pd.DataFrame()
 
     df["Month"] = df_temp["Month"]
-    df["Value"] = df_temp["Home Equity"] + df_temp["Portfolio Value"]
-
-    # for index, row in df_temp.iterrows():
-    #     if row[""]
+    df["Portfolio Value"] = df_temp["Home Equity"] + df_temp["Portfolio Value"]
 
     return df
 
@@ -62,7 +59,7 @@ def stock_portfolio(type, initial_sum, cashflow_df, avg_return, buy_transaction)
     invest_return = 0
 
     data = []
-    month = 0
+    month = 1
 
     if type == 0: #rent
         for index, row in cashflow_df.iterrows():
@@ -106,7 +103,7 @@ def cashflow(house, rent):
 
 #House Portfolio
 #Figures out the monthly increase in value
-def house_equity(timeline, house_value, house_appreciation, selling_fee, mortgage_df):
+def house_equity(mortgage_years, house_value, house_appreciation, selling_fee, mortgage_df, timeline):
     monthly_house_appreciation = (1+house_appreciation)**(1/12)
     house_value = house_value * (monthly_house_appreciation)
     starting_house_value = house_value
@@ -115,14 +112,20 @@ def house_equity(timeline, house_value, house_appreciation, selling_fee, mortgag
 
     data = []
 
-    for month in range(1, (timeline * 12) + 1):
+    for month in range(1, (mortgage_years * 12) + 1):
+        data.append([month, round(house_value, 2)])
+
+        house_value = house_value * (monthly_house_appreciation)
+
+    for month in range((mortgage_years * 12) + 2, (timeline * 12) + 1):
         data.append([month, round(house_value, 2)])
 
         house_value = house_value * (monthly_house_appreciation)
 
     df_house_portfolio = pd.DataFrame(data, columns=["Month", "Monthly House Value"])
 
-    df = pd.merge(df_mortgage, df_house_portfolio, on="Month")
+    df = pd.merge(df_mortgage, df_house_portfolio, on="Month", how='right')
+    df = df.fillna(0)
 
     df['Home Equity'] = round((df["Monthly House Value"] - df["Remaining_Principal"] - ( starting_house_value * selling_fee)), 2)
 
@@ -216,7 +219,7 @@ def mortgage_amortization(principal, annual_interest_rate, years):
 amortization_table = mortgage_amortization(principal_amount, interest_rate, mortgage_years)
 rent_cost = rent(rent_monthly, rent_increase, utilities_monthly, rent_insurance, timeline, yearly_inflation, rent_other)
 house_cost = house(timeline, amortization_table, annual_home_maintenance, utilities_monthly, house_insurance, strata_fee, house_other, yearly_inflation, property_tax, house_nominal_appreciation, house_value)
-house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table)
+house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table, timeline)
 cash = cashflow(house_cost, rent_cost)
 rent_portfolio = stock_portfolio(0, (house_value * down_payment), cash, portfolio_nominal_aftertax_return, house_purchase_fee)
 house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
@@ -227,50 +230,50 @@ dfs = [rent_portfolio, final_house_equity]
 #Create table from dataframe
 app.layout = dash_table.DataTable(amortization_table.to_dict('records'))
 
-app.layout = mt.Grid(
-    children=[
-        mt.Col(
-            span=4,
-            children=[
-                html.H2("Table 1"), dash_table.DataTable(house_equity_df.to_dict('records'))
-            ]
-        ),
-        mt.Col(
-            span=4,
-            children=[
-                html.H2("Table 2"), dash_table.DataTable(cash.to_dict('records'))
-            ]
-        ),
-        mt.Col(
-            span=4,
-            children=[
-                html.H2("Table 3"), dash_table.DataTable(house_portfolio.to_dict('records'))
-            ]
-        )
-    ]
-)
+# app.layout = mt.Grid(
+#     children=[
+#         mt.Col(
+#             span=4,
+#             children=[
+#                 html.H2("Table 1"), dash_table.DataTable(house_equity_df.to_dict('records'))
+#             ]
+#         ),
+#         mt.Col(
+#             span=4,
+#             children=[
+#                 html.H2("Table 2"), dash_table.DataTable(house_portfolio.to_dict('records'))
+#             ]
+#         ),
+#         mt.Col(
+#             span=4,
+#             children=[
+#                 html.H2("Table 3"), dash_table.DataTable(final_house_equity.to_dict('records'))
+#             ]
+#         )
+#     ]
+# )
 
-# app.layout = html.Div([
-#     dcc.Graph(
-#         id='line-graph',
-#         figure={
-#             'data': [
-#                 go.Scatter(
-#                     x=df['Month'],
-#                     y=df['Portfolio Value'],
-#                     mode='lines+markers',
-#                     name=f'DataFrame {i+1}'
-#                 ) for i, df in enumerate(dfs)
-#             ],
-#             'layout': go.Layout(
-#                 title='Line Graph from Multiple DataFrames',
-#                 xaxis={'title': 'X-axis'},
-#                 yaxis={'title': 'Y-axis'},
-#                 showlegend=True
-#             )
-#         }
-#     )
-# ])
+app.layout = html.Div([
+    dcc.Graph(
+        id='line-graph',
+        figure={
+            'data': [
+                go.Scatter(
+                    x=df['Month'],
+                    y=df['Portfolio Value'],
+                    mode='lines+markers',
+                    name='Rent' if i == 0 else 'Buy'
+                ) for i, df in enumerate(dfs)
+            ],
+            'layout': go.Layout(
+                title='Rent vs. Buy',
+                xaxis={'title': 'Months'},
+                yaxis={'title': 'Dollars(CAD)'},
+                showlegend=True
+            )
+        }
+    )
+])
 
 
 if __name__ == '__main__':
