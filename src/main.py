@@ -10,7 +10,7 @@ app = Dash(__name__)
 timeline = 40
 
 # Input Buy:
-house_value = 500000
+house_value = 2000000
 down_payment = 20/100
 principal_amount = house_value*(1-down_payment)
 interest_rate = 4.5/100  # 4.5%
