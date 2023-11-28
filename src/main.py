@@ -2,6 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objs as go
+import dash
 from dash import Dash, html, dash_table, dcc, callback, Output, Input, dash_table, State
 import dash_mantine_components as mt
 # import dash_bootstrap_components as dbc
@@ -11,25 +12,25 @@ import dash_mantine_components as mt
 app = Dash(__name__)
 
 #****************************************************
-#General Inputs:
-timeline_input = dcc.Input(
-    id='timeline-input',
-    type='number',
-    value=40,
-    placeholder='Enter timeline...',
-)
-timeline = int(timeline_input.value)
+# #General Inputs:
+# timeline_input = dcc.Input(
+#     id='timeline-input',
+#     type='number',
+#     value=40,
+#     placeholder='Enter timeline...',
+# )
 
-# Input Buy:
-house_value_input = dcc.Input(
-    id='house_value-input',
-    type='number',
-    value=500000,
-    placeholder='Enter house values...',
-)
-house_value = int(house_value_input.value)
+# # Input Buy:
+# house_value_input = dcc.Input(
+#     id='house_value-input',
+#     type='number',
+#     value=500000,
+#     placeholder='Enter house values...',
+# )
+
+# house_value = int(house_value_input.value)
 down_payment = 20/100
-principal_amount = int(house_value_input.value)*(1-down_payment)
+# principal_amount = int(house_value_input.value)*(1-down_payment)
 interest_rate = 4.5/100  # 4.5%
 mortgage_years = 25
 #house costs
@@ -43,7 +44,7 @@ house_purchase_fee = 12000
 house_sell_fee = 4/100
 
 #Input Rent:
-initial_portfolio = int(house_value_input.value)*down_payment
+# initial_portfolio = int(house_value_input.value)*down_payment
 rent_monthly = 1630
 rent_increase = 2.5/100
 utilities_monthly = 120
@@ -232,98 +233,16 @@ def mortgage_amortization(principal, annual_interest_rate, years):
 
     return df
 
-#Create dataframes
-amortization_table = mortgage_amortization(principal_amount, interest_rate, mortgage_years)
-rent_cost = rent(rent_monthly, rent_increase, utilities_monthly, rent_insurance, timeline, yearly_inflation, rent_other)
-house_cost = house(timeline, amortization_table, annual_home_maintenance, utilities_monthly, house_insurance, strata_fee, house_other, yearly_inflation, property_tax, house_nominal_appreciation, house_value)
-house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table, timeline)
-cash = cashflow(house_cost, rent_cost)
-rent_portfolio = stock_portfolio(0, (house_value * down_payment), cash, portfolio_nominal_aftertax_return, house_purchase_fee)
-house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
-final_house_equity = total_house_equity(house_equity_df, house_portfolio)
-#portfolio = portfolio(amortization_table, rent_scenerio)
-dfs = [rent_portfolio, final_house_equity]
-
-#Create table from dataframe
-# app.layout = dash_table.DataTable(amortization_table.to_dict('records'))
-
-# app.layout = mt.Grid(
-#     children=[
-#         mt.Col(
-#             span=4,
-#             children=[
-#                 html.H2("Table 1"), dash_table.DataTable(house_equity_df.to_dict('records'))
-#             ]
-#         ),
-#         mt.Col(
-#             span=4,
-#             children=[
-#                 html.H2("Table 2"), dash_table.DataTable(house_portfolio.to_dict('records'))
-#             ]
-#         ),
-#         mt.Col(
-#             span=4,
-#             children=[
-#                 html.H2("Table 3"), dash_table.DataTable(final_house_equity.to_dict('records'))
-#             ]
-#         )
-#     ]
-# )
-
-# Create a callback to update the graph based on timeline input
-@app.callback(
-    Output('line-graph', 'figure'),
-    Output('Table-1', 'test'),
-    Input('submit-button-state', 'n_clicks'),
-    State('timeline-input', 'value'),
-    State('house_value-input', 'value')
-)
-def update_graph(n_clicks, timeline, house_value):
-    # Recalculate the dataframes based on the new timeline value
-    # initial_portfolio = int(house_value_input.value)*down_payment
-    # principal_amount = int(house_value_input.value)*(1-down_payment)
-
-    amortization_table = mortgage_amortization(principal_amount, interest_rate, mortgage_years)
-    rent_cost = rent(rent_monthly, rent_increase, utilities_monthly, rent_insurance, timeline, yearly_inflation, rent_other)
-    house_cost = house(timeline, amortization_table, annual_home_maintenance, utilities_monthly, house_insurance, strata_fee, house_other, yearly_inflation, property_tax, house_nominal_appreciation, house_value)
-    house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table, timeline)
-    cash = cashflow(house_cost, rent_cost)
-    rent_portfolio = stock_portfolio(0, (house_value * down_payment), cash, portfolio_nominal_aftertax_return, house_purchase_fee)
-    house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
-    final_house_equity = total_house_equity(house_equity_df, house_portfolio)
-    dfs = [rent_portfolio, final_house_equity]
-
-    test = cash.to_dict('records')
-    # Update the graph with the new dataframes
-    figure = {
-        'data': [
-            go.Scatter(
-                x=df['Month'],
-                y=df['Portfolio Value'],
-                mode='lines+markers',
-                name='Rent' if i == 0 else 'Buy'
-            ) for i, df in enumerate(dfs)
-        ],
-        'layout': go.Layout(
-            title='Rent vs. Buy',
-            xaxis={'title': 'Months'},
-            yaxis={'title': 'Dollars(CAD)'},
-            showlegend=True
-        )
-    }
-
-    return figure, test
-
 app.layout = html.Div([
     html.Div([
         html.Label('Timeline'),
-        timeline_input,
+        dcc.Input(id='timeline-input', type='number', value=40, placeholder='Enter timeline...')
     ]),
     html.Div([
         html.Label('House Value'),
-        house_value_input,
+        dcc.Input(id='house_value-input', type='number', value=500000, placeholder='Enter house values...')
     ]),
-    html.Button(id='submit-button-state', n_clicks=0, children='Submit'),
+    html.Button(id='submit-button', n_clicks=0, children='Submit'),
     dcc.Graph(
         id='line-graph',
         figure={  # Placeholder figure
@@ -336,57 +255,82 @@ app.layout = html.Div([
             }
         }
     ),
-    # dbc.Row([
-    #     dbc.Col(
-    #         [
-    #             html.H2("Table 1"), 
-    #             dash_table.DataTable(data=house_equity_df.to_dict('records'))
-    #         ],
-    #         width=4
-    #     ),
-    #     dbc.Col(
-    #         [
-    #             html.H2("Table 2"), 
-    #             dash_table.DataTable(data=house_portfolio.to_dict('records'))
-    #         ],
-    #         width=4
-    #     ),
-    #     dbc.Col(
-    #         [
-    #             html.H2("Table 3"), 
-    #             dash_table.DataTable(data=final_house_equity.to_dict('records'))
-    #         ],
-    #         width=4
-    #     ),
-    # ])
     mt.Grid(children=[
         mt.Col(
-            span=3,
+            span=12,
             children=[
-                html.H2("Mortgage"), dash_table.DataTable(id='Table-1', data=amortization_table.to_dict('records'))
-            ]
-        ),
-        mt.Col(
-            span=3,
-            children=[
-                html.H2("House Equity"), dash_table.DataTable(id='Table-2',data=house_equity_df.to_dict('records'))
-            ]
-        ),
-        mt.Col(
-            span=3,
-            children=[
-                html.H2("House Portfolio"), dash_table.DataTable(id='Table-3',data=house_portfolio.to_dict('records'))
-            ]
-        ),
-        mt.Col(
-            span=3,
-            children=[
-                html.H2("Total House Equity"), dash_table.DataTable(id='Table-4',data=final_house_equity.to_dict('records'))
+                html.H2("Mortgage"), dash_table.DataTable(id='Table-1')
             ]
         )
+    #     mt.Col(
+    #         span=3,
+    #         children=[
+    #             html.H2("House Equity"), dash_table.DataTable(id='Table-2',data=house_equity_df.to_dict('records'))
+    #         ]
+    #     ),
+    #     mt.Col(
+    #         span=3,
+    #         children=[
+    #             html.H2("House Portfolio"), dash_table.DataTable(id='Table-3',data=house_portfolio.to_dict('records'))
+    #         ]
+    #     ),
+    #     mt.Col(
+    #         span=3,
+    #         children=[
+    #             html.H2("Total House Equity"), dash_table.DataTable(id='Table-4',data=final_house_equity.to_dict('records'))
+    #         ]
+    #     )
     ])
 ])
 
+
+# Create a callback to update the graph based on timeline input
+@app.callback(
+    Output('line-graph', 'figure'),
+    Output('Table-1', 'data'),
+    Input('submit-button', 'n_clicks'),
+    State('timeline-input', 'value'),
+    State('house_value-input', 'value')
+)
+def update_graph(n_clicks, timeline, house_value):
+    if n_clicks > 0:
+        # Recalculate the dataframes based on the new timeline value
+        initial_portfolio = house_value*down_payment
+        principal_amount = house_value*(1-down_payment)
+
+        amortization_table = mortgage_amortization(principal_amount, interest_rate, mortgage_years)
+        rent_cost = rent(rent_monthly, rent_increase, utilities_monthly, rent_insurance, timeline, yearly_inflation, rent_other)
+        house_cost = house(timeline, amortization_table, annual_home_maintenance, utilities_monthly, house_insurance, strata_fee, house_other, yearly_inflation, property_tax, house_nominal_appreciation, house_value)
+        house_equity_df = house_equity(timeline, house_value, house_nominal_appreciation, house_sell_fee, amortization_table, timeline)
+        cash = cashflow(house_cost, rent_cost)
+        rent_portfolio = stock_portfolio(0, initial_portfolio, cash, portfolio_nominal_aftertax_return, house_purchase_fee)
+        house_portfolio = stock_portfolio(1, 0, cash, portfolio_nominal_aftertax_return, 0)
+        final_house_equity = total_house_equity(house_equity_df, house_portfolio)
+        dfs = [rent_portfolio, final_house_equity]
+
+        # Update the graph with the new dataframes
+        test = final_house_equity.to_dict('records')
+        
+        figure = {
+            'data': [
+                go.Scatter(
+                    x=df['Month'],
+                    y=df['Portfolio Value'],
+                    mode='lines+markers',
+                    name='Rent' if i == 0 else 'Buy'
+                ) for i, df in enumerate(dfs)
+            ],
+            'layout': go.Layout(
+                title='Rent vs. Buy',
+                xaxis={'title': 'Months'},
+                yaxis={'title': 'Dollars(CAD)'},
+                showlegend=True
+            )
+        }
+
+        return figure, test
+    else:
+        return dash.no_update, dash.no_update
 
 if __name__ == '__main__':
     app.run(debug=True)
