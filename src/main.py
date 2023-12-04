@@ -5,57 +5,8 @@ import plotly.graph_objs as go
 import dash
 from dash import Dash, html, dash_table, dcc, callback, Output, Input, dash_table, State
 import dash_mantine_components as mt
-# import dash_bootstrap_components as dbc
 
-#test
-
-app = Dash(__name__)
-
-#****************************************************
-# #General Inputs:
-# timeline_input = dcc.Input(
-#     id='timeline-input',
-#     type='number',
-#     value=40,
-#     placeholder='Enter timeline...',
-# )
-
-# # Input Buy:
-# house_value_input = dcc.Input(
-#     id='house_value-input',
-#     type='number',
-#     value=500000,
-#     placeholder='Enter house values...',
-# )
-
-# house_value = int(house_value_input.value)
-down_payment = 20/100
-# principal_amount = int(house_value_input.value)*(1-down_payment)
-interest_rate = 4.5/100  # 4.5%
-mortgage_years = 25
-#house costs
-annual_home_maintenance = 3000
-house_insurance = 120
-strata_fee = 500
-house_other = 0
-property_tax = 0.25/100
-#buy/sell
-house_purchase_fee = 12000
-house_sell_fee = 4/100
-
-#Input Rent:
-# initial_portfolio = int(house_value_input.value)*down_payment
-rent_monthly = 1630
-rent_increase = 2.5/100
-utilities_monthly = 120
-rent_insurance = 30
-rent_other = 0
-
-#Input Investments:
-portfolio_nominal_aftertax_return = 6.0/100
-house_nominal_appreciation = 3.5/100
-yearly_inflation = 2.5/100
-#**********************************************************
+app = dash.Dash()
 
 #Total House Equity
 def total_house_equity(house, portfolio):
@@ -236,19 +187,75 @@ def mortgage_amortization(principal, annual_interest_rate, years):
 app.layout = html.Div([
     html.Div([
         html.Label('Timeline'),
-        dcc.Input(id='timeline-input', type='number', value=40, placeholder='Enter timeline...')
+        dcc.Input(id='timeline-input', type='number', value=40, placeholder='Enter timeline...', className='input-box')
     ]),
     html.Div([
+        #Input House
         html.Label('House Value'),
-        dcc.Input(id='house_value-input', type='number', value=500000, placeholder='Enter house values...')
+        dcc.Input(id='house_value-input', type='number', value=500000, placeholder='Enter house values...', className='input-box'),
+        html.Label('Down Payment'),
+        dcc.Input(id='down_payment-input', type='number', value=0.2, placeholder='Enter percentage...', className='input-box'),
+        html.Label('Mortage Rate'),
+        dcc.Input(id='interest_rate-input', type='number', value=0.045, placeholder='Enter percentage...', className='input-box'),
+        html.Label('Mortage Years'),
+        dcc.Input(id='mortgage_years-input', type='number', value=25, placeholder='Enter Years...', className='input-box'),
+        html.Label('Anuual Home Maintenance'),
+        dcc.Input(id='annual_home_maintenance-input', type='number', value=3000, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('House Insurance'),
+        dcc.Input(id='house_insurance-input', type='number', value=120, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('Strata Fee'),
+        dcc.Input(id='strata_fee-input', type='number', value=500, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('House Other'),
+        dcc.Input(id='house_other-input', type='number', value=0, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('Property Tax'),
+        dcc.Input(id='property_tax-input', type='number', value=0.0025, placeholder='Enter percentage...', className='input-box'),
+        html.Label('House Purchase Fee'),
+        dcc.Input(id='house_purchase_fee-input', type='number', value=12000, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('House Sell Fee'),
+        dcc.Input(id='house_sell_fee-input', type='number', value=0.04, placeholder='Enter percentage...', className='input-box')
+    ]),
+    html.Div([
+        # Input Rent
+        html.Label('Rent Monthly'),
+        dcc.Input(id='rent_monthly-input', type='number', value=1630, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('Rent Increase'),
+        dcc.Input(id='rent_increase-input', type='number', value=0.025, placeholder='Enter percentage...', className='input-box'),
+        html.Label('Utilities Monthly'),
+        dcc.Input(id='utilities_monthly-input', type='number', value=120, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('Rent Insurance'),
+        dcc.Input(id='rent_insurance-input', type='number', value=30, placeholder='Enter dollar value...', className='input-box'),
+        html.Label('Rent Other'),
+        dcc.Input(id='rent_other-input', type='number', value=0, placeholder='Enter dollar value...', className='input-box')
+    ]),
+    html.Div([
+        # Input Investments
+        html.Label('Portfolio Nominal Aftertax Return'),
+        dcc.Input(id='portfolio_nominal_aftertax_return-input', type='number', value=0.06, placeholder='Enter return...', className='input-box'),
+        html.Label('House Nominal Appreciation'),
+        dcc.Input(id='house_nominal_appreciation-input', type='number', value=0.035, placeholder='Enter return...', className='input-box'),
+        html.Label('Yearly Inflation'),
+        dcc.Input(id='yearly_inflation-input', type='number', value=0.025, placeholder='Enter inflation...', className='input-box')
     ]),
     html.Button(id='submit-button', n_clicks=0, children='Submit'),
     dcc.Graph(
-        id='line-graph',
+        id='main-graph',
         figure={  # Placeholder figure
             'data': [],
             'layout': {
                 'title': 'Rent vs. Buy',
+                'xaxis': {'title': 'Months'},
+                'yaxis': {'title': 'Dollars(CAD)'},
+                'showlegend': True
+            }
+        }
+    ),
+    dcc.Store(id='main-data'),
+    dcc.Graph(
+        id='second-graph',
+        figure={  # Placeholder figure
+            'data': [],
+            'layout': {
+                'title': 'Second Graph',
                 'xaxis': {'title': 'Months'},
                 'yaxis': {'title': 'Dollars(CAD)'},
                 'showlegend': True
@@ -286,13 +293,32 @@ app.layout = html.Div([
 
 # Create a callback to update the graph based on timeline input
 @app.callback(
-    Output('line-graph', 'figure'),
+    Output('main-graph', 'figure'),
     Output('Table-1', 'data'),
+    #Output('main-data', 'data'),
     Input('submit-button', 'n_clicks'),
     State('timeline-input', 'value'),
-    State('house_value-input', 'value')
+    State('house_value-input', 'value'),
+    State('down_payment-input', 'value'),
+    State('interest_rate-input', 'value'),
+    State('mortgage_years-input', 'value'),
+    State('annual_home_maintenance-input', 'value'),
+    State('house_insurance-input', 'value'),
+    State('strata_fee-input', 'value'),
+    State('house_other-input', 'value'),
+    State('property_tax-input', 'value'),
+    State('house_purchase_fee-input', 'value'),
+    State('house_sell_fee-input', 'value'),
+    State('rent_monthly-input', 'value'),
+    State('rent_increase-input', 'value'),
+    State('utilities_monthly-input', 'value'),
+    State('rent_insurance-input', 'value'),
+    State('rent_other-input', 'value'),
+    State('portfolio_nominal_aftertax_return-input', 'value'),
+    State('house_nominal_appreciation-input', 'value'),
+    State('yearly_inflation-input', 'value')
 )
-def update_graph(n_clicks, timeline, house_value):
+def update_graph(n_clicks, timeline, house_value, down_payment, interest_rate, mortgage_years, annual_home_maintenance, house_insurance, strata_fee, house_other, property_tax, house_purchase_fee, house_sell_fee, rent_monthly, rent_increase, utilities_monthly, rent_insurance, rent_other, portfolio_nominal_aftertax_return, house_nominal_appreciation, yearly_inflation):
     if n_clicks > 0:
         # Recalculate the dataframes based on the new timeline value
         initial_portfolio = house_value*down_payment
@@ -316,8 +342,9 @@ def update_graph(n_clicks, timeline, house_value):
                 go.Scatter(
                     x=df['Month'],
                     y=df['Portfolio Value'],
-                    mode='lines+markers',
-                    name='Rent' if i == 0 else 'Buy'
+                    mode='lines',
+                    name='Rent' if i == 0 else 'Buy',
+                    line=dict(width=2) 
                 ) for i, df in enumerate(dfs)
             ],
             'layout': go.Layout(
@@ -328,9 +355,39 @@ def update_graph(n_clicks, timeline, house_value):
             )
         }
 
-        return figure, test
+        return figure, test#, dfs
     else:
         return dash.no_update, dash.no_update
+
+# Second callback to update the second graph
+@app.callback(
+    Output('second-graph', 'figure'),
+    Input('submit-button', 'n_clicks'),
+    Input('main-data', 'data')
+)
+def update_second_graph(n_clicks, original_data):
+    if n_clicks > 0: # Checking if original data is available
+        # Reusing the data obtained from the first callback
+        figure = {
+            'data': [
+                go.Scatter(
+                    x=df['Month'],
+                    y=df['Portfolio Value'],
+                    mode='lines',
+                    name='Rent' if i == 0 else 'Buy',
+                    line=dict(width=5)
+                ) for i, df in enumerate(original_data)
+            ],
+            'layout': go.Layout(
+                title='Second Graph',
+                xaxis={'title': 'Months'},
+                yaxis={'title': 'Dollars(CAD)'},
+                showlegend=True
+            )
+        }
+        return figure
+    else:
+        return dash.no_update
 
 if __name__ == '__main__':
     app.run(debug=True)
