@@ -6,7 +6,7 @@ import dash
 from dash import Dash, html, dash_table, dcc, callback, Output, Input, dash_table, State
 import dash_mantine_components as mt
 
-app = dash.Dash()
+app = dash.Dash(suppress_callback_exceptions=True)
 
 #Total House Equity
 def total_house_equity(house, portfolio):
@@ -248,27 +248,27 @@ app.layout = html.Div([
                 'showlegend': True
             }
         }
-    ),
+     ),
     dcc.Store(id='main-data'),
-    dcc.Graph(
-        id='second-graph',
-        figure={  # Placeholder figure
-            'data': [],
-            'layout': {
-                'title': 'Second Graph',
-                'xaxis': {'title': 'Months'},
-                'yaxis': {'title': 'Dollars(CAD)'},
-                'showlegend': True
-            }
-        }
-    ),
-    mt.Grid(children=[
-        mt.Col(
-            span=12,
-            children=[
-                html.H2("Mortgage"), dash_table.DataTable(id='Table-1')
-            ]
-        )
+    # dcc.Graph(
+    #     id='second-graph',
+    #     figure={  # Placeholder figure
+    #         'data': [],
+    #         'layout': {
+    #             'title': 'Second Graph',
+    #             'xaxis': {'title': 'Months'},
+    #             'yaxis': {'title': 'Dollars(CAD)'},
+    #             'showlegend': True
+    #         }
+    #     }
+    # ),
+    # mt.Grid(children=[
+    #     mt.Col(
+    #         span=12,
+    #         children=[
+    #             html.H2("Mortgage"), dash_table.DataTable(id='Table-1')
+    #         ]
+    #     )
     #     mt.Col(
     #         span=3,
     #         children=[
@@ -287,15 +287,15 @@ app.layout = html.Div([
     #             html.H2("Total House Equity"), dash_table.DataTable(id='Table-4',data=final_house_equity.to_dict('records'))
     #         ]
     #     )
-    ])
+    #])
 ])
 
 
 # Create a callback to update the graph based on timeline input
 @app.callback(
     Output('main-graph', 'figure'),
-    Output('Table-1', 'data'),
-    #Output('main-data', 'data'),
+    #Output('Table-1', 'data'),
+    Output('main-data', 'data'),
     Input('submit-button', 'n_clicks'),
     State('timeline-input', 'value'),
     State('house_value-input', 'value'),
@@ -359,35 +359,35 @@ def update_graph(n_clicks, timeline, house_value, down_payment, interest_rate, m
     else:
         return dash.no_update, dash.no_update
 
-# Second callback to update the second graph
-@app.callback(
-    Output('second-graph', 'figure'),
-    Input('submit-button', 'n_clicks'),
-    Input('main-data', 'data')
-)
-def update_second_graph(n_clicks, original_data):
-    if n_clicks > 0: # Checking if original data is available
-        # Reusing the data obtained from the first callback
-        figure = {
-            'data': [
-                go.Scatter(
-                    x=df['Month'],
-                    y=df['Portfolio Value'],
-                    mode='lines',
-                    name='Rent' if i == 0 else 'Buy',
-                    line=dict(width=5)
-                ) for i, df in enumerate(original_data)
-            ],
-            'layout': go.Layout(
-                title='Second Graph',
-                xaxis={'title': 'Months'},
-                yaxis={'title': 'Dollars(CAD)'},
-                showlegend=True
-            )
-        }
-        return figure
-    else:
-        return dash.no_update
+# # Second callback to update the second graph
+# @app.callback(
+#     Output('second-graph', 'figure'),
+#     Input('submit-button', 'n_clicks'),
+#     Input('main-data', 'data')
+# )
+# def update_second_graph(n_clicks, original_data):
+#     if n_clicks > 0: # Checking if original data is available
+#         # Reusing the data obtained from the first callback
+#         figure = {
+#             'data': [
+#                 go.Scatter(
+#                     x=df['Month'],
+#                     y=df['Portfolio Value'],
+#                     mode='lines',
+#                     name='Rent' if i == 0 else 'Buy',
+#                     line=dict(width=5)
+#                 ) for i, df in enumerate(original_data)
+#             ],
+#             'layout': go.Layout(
+#                 title='Second Graph',
+#                 xaxis={'title': 'Months'},
+#                 yaxis={'title': 'Dollars(CAD)'},
+#                 showlegend=True
+#             )
+#         }
+#         return figure
+#     else:
+#         return dash.no_update
 
 if __name__ == '__main__':
     app.run(debug=True)
